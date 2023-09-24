@@ -2,7 +2,7 @@ import torch, time, copy, joblib
 import numpy as np
 import pandas as pd
 import torch.nn.functional as F
-from tqdm import tqdm
+# from torchinfo import summary
 from torch.optim import lr_scheduler, Adam, SGD
 from torch.utils.data import Dataset, DataLoader
 from sklearn.model_selection import train_test_split
@@ -17,9 +17,9 @@ import datetime
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # parameters
-training_epochs = 5000
-batch_size = 128
-learning_rate = 0.00001
+training_epochs = 1000
+batch_size = 16
+learning_rate = 0.01
 
 class TensorData(Dataset):
     #전처리를 하는 부분
@@ -43,14 +43,12 @@ class NeuralNet(torch.nn.Module):
         self.batchnorm1 = torch.nn.BatchNorm1d(32)
         self.hidden_layer2 = torch.nn.Linear(32, 518)
         self.batchnorm2 = torch.nn.BatchNorm1d(518)
-        self.hidden_layer3 = torch.nn.Linear(518, 518)
-        self.batchnorm3 = torch.nn.BatchNorm1d(518)
-        self.hidden_layer5 = torch.nn.Linear(518, 32)
-        self.batchnorm5 = torch.nn.BatchNorm1d(32)
-        self.hidden_layer6 = torch.nn.Linear(32, 16)
-        self.batchnorm6 = torch.nn.BatchNorm1d(16)
+        self.hidden_layer3 = torch.nn.Linear(518, 32)
+        self.batchnorm3 = torch.nn.BatchNorm1d(32)
+        self.hidden_layer4 = torch.nn.Linear(32, 16)
+        self.batchnorm4 = torch.nn.BatchNorm1d(16)
         self.output_layer = torch.nn.Linear(16, output_size)
-        self.dropout = torch.nn.Dropout(0.4)
+        self.dropout = torch.nn.Dropout(0.5)
         self.relu = torch.nn.LeakyReLU()
         self.soft = torch.nn.Softmax()
 
@@ -59,15 +57,7 @@ class NeuralNet(torch.nn.Module):
         output = self.dropout(self.relu(self.batchnorm1(self.hidden_layer1(output))))
         output = self.dropout(self.relu(self.batchnorm2(self.hidden_layer2(output))))
         output = self.dropout(self.relu(self.batchnorm3(self.hidden_layer3(output))))
-        output = self.dropout(self.relu(self.batchnorm3(self.hidden_layer3(output))))
-        output = self.dropout(self.relu(self.batchnorm3(self.hidden_layer3(output))))
-        output = self.dropout(self.relu(self.batchnorm3(self.hidden_layer3(output))))
-        output = self.dropout(self.relu(self.batchnorm3(self.hidden_layer3(output))))
-        output = self.dropout(self.relu(self.batchnorm3(self.hidden_layer3(output))))
-        output = self.dropout(self.relu(self.batchnorm3(self.hidden_layer3(output))))
-        output = self.dropout(self.relu(self.batchnorm3(self.hidden_layer3(output))))
-        output = self.dropout(self.relu(self.batchnorm5(self.hidden_layer5(output))))
-        output = self.dropout(self.relu(self.batchnorm6(self.hidden_layer6(output))))
+        output = self.dropout(self.relu(self.batchnorm4(self.hidden_layer4(output))))
         output = self.output_layer(output)
         return output
         
@@ -128,16 +118,16 @@ criterion = torch.nn.CrossEntropyLoss().to(device)
 optimizer = torch.optim.Adam(model.parameters(),lr=learning_rate)
 # factor: lr 감소시키는 비율 / patience: 얼마 동안 변화가 없을 때 lr을 감소시킬지 / threshold: Metric의 변화가 threhold이하일 시 변화가 없다고 판단
 # eps: lr의 감소 최소치 지정
-scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5,
-                                           threshold=0.00001, threshold_mode='rel', min_lr=0, eps=1e-11, verbose=False)#11
+scheduler = lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=3,
+                                           threshold=0.00001, threshold_mode='rel', min_lr=0, eps=1e-9, verbose=False)#11
 
 
 for fold, (train_fold, val_fold) in enumerate(kfold.split(trainsets)):
     print("Fold: {}".format(fold+1))
     train_data = torch.utils.data.Subset(trainsets, train_fold)
-    trainloader = DataLoader(train_data, batch_size=batch_size, shuffle=False)
+    trainloader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
     val_data = torch.utils.data.Subset(trainsets, val_fold)
-    validationloader = DataLoader(val_data, batch_size=batch_size, shuffle=False)
+    validationloader = DataLoader(val_data, batch_size=batch_size, shuffle=True)
     
     loss_list = []
     acc_list = []
